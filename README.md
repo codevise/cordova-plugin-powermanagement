@@ -14,13 +14,9 @@ For details on power functionality see:
 
 Installation
 ---------
-Install using npm:
-
-`$ npm i cordova-plugin-powermanagement-orig`
-
 Install the plugin using the cordova command line utility:
 
-`$ cordova plugin add https://github.com/Viras-/cordova-plugin-powermanagement.git`
+`$ cordova plugin add https://github.com/schoetty/cordova-plugin-powermanagement.git`
 
 Usage
 -----
@@ -34,17 +30,6 @@ Acquire a wakelock by calling this.
 		console.log('Failed to acquire wakelock');
 	});
 
-### window.powerManagement.dim(successCallback, failureCallback)
-This acquires a partial wakelock, allowing the screen to be dimmed.
-
-	window.powerManagement.dim(function() {
-		console.log('Wakelock acquired');
-	}, function() {
-		console.log('Failed to acquire wakelock');
-	});
-
-This function is nort supported on windows platform and will invoke the successCallback.
-
 ### window.powerManagement.release(successCallback, failureCallback)
 Release the wakelock. It's important to do this when you're finished with the wakelock, to avoid unnecessary battery drain.
 
@@ -53,6 +38,16 @@ Release the wakelock. It's important to do this when you're finished with the wa
 	}, function() {
 		console.log('Failed to release wakelock');
 	});
+
+### [Android Only] window.powerManagement.partial(successCallback, failureCallback)
+This acquires a partial wakelock. Ensures that the CPU is running; the screen and keyboard backlight will be allowed to go off
+
+	window.powerManagement.partial(function() {
+		console.log('Wakelock acquired');
+	}, function() {
+		console.log('Failed to acquire wakelock');
+	});
+
 
 ### [Android Only] window.powerManagement.setReleaseOnPause(enabled, successCallback, failureCallback)
 By default, the plugin will automatically release a wakelock when your app is paused (e.g. when the screen is turned off, or the user switches to another app). It will reacquire the wakelock upon app resume. If you would prefer to disable this behaviour, you can use this function.
