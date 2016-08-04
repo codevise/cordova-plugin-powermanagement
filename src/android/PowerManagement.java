@@ -27,6 +27,7 @@ import org.json.JSONException;
 import android.content.Context;
 import android.os.PowerManager;
 import android.util.Log;
+import android.net.wifi.WifiManager;
 
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
@@ -41,7 +42,9 @@ import org.apache.cordova.PluginResult.Status;
 public class PowerManagement extends CordovaPlugin {
     // As we only allow one wake-lock, we keep a reference to it here
     private PowerManager.WakeLock wakeLock = null;
+    private WifiManager.WifiLock wifiLock = null;
     private PowerManager powerManager = null;
+    private WifiManager wifiManager = null;
     private boolean releaseOnPause = true;
 
     /**
@@ -52,6 +55,7 @@ public class PowerManagement extends CordovaPlugin {
         super.initialize(cordova, webView);
 
         this.powerManager = (PowerManager) cordova.getActivity().getSystemService(Context.POWER_SERVICE);
+        this.wifiManager = (WifiManager) cordova.getActivity().getSystemService(Context.WIFI_SERVICE);
     }
 
     @Override
@@ -59,19 +63,31 @@ public class PowerManagement extends CordovaPlugin {
                            CallbackContext callbackContext) throws JSONException {
 
         PluginResult result = null;
-        Log.d("PowerManagementPlugin", "Plugin execute called - " + this.toString());
-        Log.d("PowerManagementPlugin", "Action is " + action);
 
         try {
             if (action.equals("acquire")) {
                 if (args.length() > 0 && "partial".equals(args.getString(0))) {
-                    Log.d("PowerManagementPlugin", "partial wake lock");
                     result = this.acquire(PowerManager.PARTIAL_WAKE_LOCK);
+                } else if (args.length() > 0 && "wifi".equals(args.getString(0))) {
+                    this.wifiLock = this.wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WifiLock");
+                    this.wifiLock.setReferenceCounted(false);
+                    this.wifiLock.acquire();
+                    result = new PluginResult(PluginResult.Status.OK);
                 } else {
                     result = this.acquire(PowerManager.FULL_WAKE_LOCK);
                 }
             } else if (action.equals("release")) {
-                result = this.release();
+                if (args.length() > 0 && "wifi".equals(args.getString(0))) {
+                    if (this.wifiLock.isHeld()) {
+                        this.wifiLock.release();
+                        this.wifiLock = null;
+                        result = new PluginResult(PluginResult.Status.OK);
+                    } else {
+                        result = new PluginResult(PluginResult.Status.ERROR, "No WakeLock is held - acquire first");
+                    }
+                } else {
+                    result = this.release();
+                }
             } else if (action.equals("setReleaseOnPause")) {
                 try {
                     this.releaseOnPause = args.getBoolean(0);

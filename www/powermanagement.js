@@ -30,9 +30,10 @@ PowerManagement.prototype.acquire = function(successCallback, errorCallback) {
  *
  * @param successCallback function to be called when the wake-lock was released successfully
  * @param errorCallback function to be called when there was a problem while releasing the wake-lock
+ * @param lock String type of lock to release. e.g. 'wifi'
  */
-PowerManagement.prototype.release = function(successCallback, errorCallback) {
-    cordova.exec(successCallback, errorCallback, 'PowerManagement', 'release', []);
+PowerManagement.prototype.release = function(successCallback, errorCallback, lock) {
+    cordova.exec(successCallback, errorCallback, 'PowerManagement', 'release', [lock]);
 };
 
 /**
@@ -55,6 +56,16 @@ PowerManagement.prototype.setReleaseOnPause = function(enabled, successCallback,
  */
 PowerManagement.prototype.partial = function(successCallback, errorCallback) {
     cordova.exec(successCallback, errorCallback, 'PowerManagement', 'acquire', ['partial']);
+};
+
+/**
+ * Acquire a wifi-lock. Allows an application to keep the Wi-Fi radio awake
+ *
+ * @param successCallback function to be called when the wake-lock was acquired successfully
+ * @param errorCallback function to be called when there was a problem with acquiring the wake-lock
+ */
+PowerManagement.prototype.wifi = function(successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, 'PowerManagement', 'acquire', ['wifi']);
 };
 
 module.exports = new PowerManagement();
