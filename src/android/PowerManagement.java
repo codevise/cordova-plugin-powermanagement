@@ -16,7 +16,7 @@
 
 /**
  * Cordova (Android) plugin for accessing the power-management functions of the device
- *
+ * <p>
  * based on the work of Wolfgang Koller <viras@users.sourceforge.net>
  */
 package org.apache.cordova.powermanagement;
@@ -26,7 +26,6 @@ import org.json.JSONException;
 
 import android.content.Context;
 import android.os.PowerManager;
-import android.util.Log;
 import android.net.wifi.WifiManager;
 
 import org.apache.cordova.CordovaWebView;
@@ -34,7 +33,6 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.PluginResult;
-import org.apache.cordova.PluginResult.Status;
 
 /**
  * Plugin class which does the actual handling
@@ -64,40 +62,27 @@ public class PowerManagement extends CordovaPlugin {
 
         PluginResult result = null;
 
-        try {
-            if (action.equals("acquire")) {
-                if (args.length() > 0 && "partial".equals(args.getString(0))) {
-                    result = this.acquire(PowerManager.PARTIAL_WAKE_LOCK);
-                } else if (args.length() > 0 && "wifi".equals(args.getString(0))) {
-                    this.wifiLock = this.wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WifiLock");
-                    this.wifiLock.setReferenceCounted(false);
-                    this.wifiLock.acquire();
-                    result = new PluginResult(PluginResult.Status.OK);
-                } else {
-                    result = this.acquire(PowerManager.FULL_WAKE_LOCK);
-                }
-            } else if (action.equals("release")) {
-                if (args.length() > 0 && "wifi".equals(args.getString(0))) {
-                    if (this.wifiLock.isHeld()) {
-                        this.wifiLock.release();
-                        this.wifiLock = null;
-                        result = new PluginResult(PluginResult.Status.OK);
-                    } else {
-                        result = new PluginResult(PluginResult.Status.ERROR, "No WakeLock is held - acquire first");
-                    }
-                } else {
-                    result = this.release();
-                }
-            } else if (action.equals("setReleaseOnPause")) {
-                try {
-                    this.releaseOnPause = args.getBoolean(0);
-                    result = new PluginResult(PluginResult.Status.OK);
-                } catch (Exception e) {
-                    result = new PluginResult(PluginResult.Status.ERROR, "Could not set releaseOnPause");
-                }
+        if (action.equals("acquire")) {
+            if ("partial".equals(args.optString(0))) {
+                result = this.acquire(PowerManager.PARTIAL_WAKE_LOCK);
+            } else if ("wifi".equals(args.optString(0))) {
+                result = this.acquireWifi(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WifiLock");
+            } else {
+                result = this.acquire(PowerManager.FULL_WAKE_LOCK);
             }
-        } catch (JSONException e) {
-            result = new PluginResult(Status.JSON_EXCEPTION, e.getMessage());
+        } else if (action.equals("release")) {
+            if ("wifi".equals(args.optString(0))) {
+                result = this.releaseWifi();
+            } else {
+                result = this.release();
+            }
+        } else if (action.equals("setReleaseOnPause")) {
+            try {
+                this.releaseOnPause = args.getBoolean(0);
+                result = new PluginResult(PluginResult.Status.OK);
+            } catch (Exception e) {
+                result = new PluginResult(PluginResult.Status.ERROR, "Could not set releaseOnPause");
+            }
         }
 
         callbackContext.sendPluginResult(result);
@@ -110,7 +95,7 @@ public class PowerManagement extends CordovaPlugin {
      * @return PluginResult containing the status of the acquire process
      */
     private PluginResult acquire(int p_flags) {
-        PluginResult result = null;
+        PluginResult result;
 
         if (this.wakeLock == null) {
             this.wakeLock = this.powerManager.newWakeLock(p_flags, "PowerManagementPlugin");
@@ -129,11 +114,37 @@ public class PowerManagement extends CordovaPlugin {
     }
 
     /**
+     * Acquire a wifi-lock
+     * @param lockType Type of wifi-lock to acquire
+     * @param tag String representing a tag for the lock
+     * @return PluginResult containing the status of the acquire process
+     */
+    private PluginResult acquireWifi(int lockType, String tag) {
+        PluginResult result;
+
+        if (this.wifiLock == null) {
+            this.wifiLock = this.wifiManager.createWifiLock(lockType, tag);
+            this.wifiLock.setReferenceCounted(false);
+            try {
+                this.wifiLock.acquire();
+                result = new PluginResult(PluginResult.Status.OK);
+            } catch (Exception e) {
+                this.wifiLock = null;
+                result = new PluginResult(PluginResult.Status.ERROR, "Can't acquire wifi-lock - check your permissions!");
+            }
+        } else {
+            result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION, "WifiLock already active - release first");
+        }
+
+        return result;
+    }
+
+    /**
      * Release an active wake-lock
      * @return PluginResult containing the status of the release process
      */
     private PluginResult release() {
-        PluginResult result = null;
+        PluginResult result;
 
         if (this.wakeLock != null) {
             try {
@@ -146,6 +157,29 @@ public class PowerManagement extends CordovaPlugin {
             this.wakeLock = null;
         } else {
             result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION, "No WakeLock active - acquire first");
+        }
+
+        return result;
+    }
+
+    /**
+     * Release an active wifi-lock
+     * @return PluginResult containing the status of the release process
+     */
+    private PluginResult releaseWifi() {
+        PluginResult result;
+
+        if (this.wifiLock != null && this.wifiLock.isHeld()) {
+            try {
+                this.wifiLock.release();
+                result = new PluginResult(PluginResult.Status.OK, "OK");
+            } catch (Exception e) {
+                result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION, "WifiLock already released");
+            }
+
+            this.wifiLock = null;
+        } else {
+            result = new PluginResult(PluginResult.Status.ILLEGAL_ACCESS_EXCEPTION, "No WifiLock active - acquire first");
         }
 
         return result;
